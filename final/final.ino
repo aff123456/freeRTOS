@@ -82,10 +82,13 @@ void TaskRandomNumber (void *pvParameters) {
 
   while(true) {
     //randNumber = analogRead(A0);
-    randNumber = random(100);
-    xQueueSend(integerQueue, &randNumber, portMAX_DELAY);
+
+    randNumber = random(1000);
+    //Serial.println("1");
+    xQueueSend(integerQueue1, &randNumber, portMAX_DELAY);
     //Serial.println(randNumber);
     //vTaskDelay(1);
+
   }
 }
 
@@ -94,16 +97,36 @@ void TaskReadQueue (void *pvParameters) {
 
   while(true) {
     if(xSemaphoreTake(mutex, 10) == pdTRUE) {
-      if(xQueueReceive(integerQueue, &valorRecebido, portMAX_DELAY) == pdPASS) {
-        Serial.print(pcTaskGetName(NULL)); // Get task name
-        Serial.print(", numero : ");
-        Serial.println(valorRecebido);
+
+      if(xQueueReceive(integerQueue1, &valorRecebido, portMAX_DELAY) == pdPASS) {
+        //Serial.print("Fila 1: ");
+        //Serial.println(valorRecebido);
+
+      //if(xQueueReceive(integerQueue, &valorRecebido, portMAX_DELAY) == pdPASS) {
+        //Serial.print(pcTaskGetName(NULL)); // Get task name
+        //Serial.print(", numero : ");
+        //Serial.println(valorRecebido);
+
         if(checkPrime(valorRecebido)) {
           Serial.println("PRIMO!");
         }
         xSemaphoreGive(mutex);
       }
     }
+    xSemaphoreGive(mutex);
+    vTaskDelay(1);
+  }
+}
+
+void TaskReadQueueFinal (void *pvParameters) {
+  (void) pvParameters;
+  
+  while(true) {
+    if(xQueueReceive(integerQueue2, &valorFinal, portMAX_DELAY) == pdPASS) {
+      Serial.print("Fila 2: ");
+      Serial.println(valorFinal);
+    }
+    //vTaskDelay(xDelay250);
     //vTaskDelay(1);
   }
 }
