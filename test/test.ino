@@ -12,12 +12,30 @@ void setup() {
 
 void loop() {
   // print a random number from 0 to 299
-  randNumber = random(300);
+  randNumber = random(100);
   Serial.println(randNumber);
 
+/*
   // print a random number from 10 to 19
   randNumber = random(10, 20);
   Serial.println(randNumber);
+*/
+  if(checkPrime(randNumber)) {
+    Serial.println("PRIMO!");
+  }
+  delay(100);
+}
 
-  delay(50);
+bool checkPrime(int number) {
+  int numberDiv = 0;
+  for(int i = 1; i <= number; i++) {
+    if(number % i == 0) {
+      numberDiv += 1;
+      }
+    }
+  if(numberDiv == 2) {
+    return true;
+  } else {
+    return false;
+  }
 }
