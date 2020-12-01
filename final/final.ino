@@ -97,11 +97,11 @@ void TaskRandomNumber (void *pvParameters) {
   (void) pvParameters;
 
   while(true) {
-    randNumber = analogRead(A0);
-    //randNumber = random(100);
-    Serial.println("1");
+    //randNumber = analogRead(A0);
+    randNumber = random(1000);
+    //Serial.println("1");
     xQueueSend(integerQueue1, &randNumber, portMAX_DELAY);
-    Serial.println(randNumber);
+    //Serial.println(randNumber);
     vTaskDelay(1);
   }
 }
@@ -112,14 +112,15 @@ void TaskReadQueue (void *pvParameters) {
   while(true) {
     if(xSemaphoreTake(mutex, 10) == pdTRUE) {
       if(xQueueReceive(integerQueue1, &valorRecebido, portMAX_DELAY) == pdPASS) {
-        Serial.print("Fila 1: ");
-        Serial.println(valorRecebido);
+        //Serial.print("Fila 1: ");
+        //Serial.println(valorRecebido);
         if(checkPrime(valorRecebido)) {
           xQueueSend(integerQueue2, &valorRecebido, portMAX_DELAY);
         }
       }
     }
-    vTaskDelay(xDelay500);
+    xSemaphoreGive(mutex);
+    vTaskDelay(1);
   }
 }
 
@@ -131,7 +132,7 @@ void TaskReadQueueFinal (void *pvParameters) {
       Serial.print("Fila 2: ");
       Serial.println(valorFinal);
     }
-    vTaskDelay(xDelay500);
+    //vTaskDelay(xDelay250);
   }
 }
 
