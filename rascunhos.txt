@@ -19,3 +19,11 @@ ESTADOS:
 task 5 sempre rodando
 
 task 1 -> task 2 e 3 -> task 4
+
+ALTERNATIVA:
+- task1: igual
+- tasks 2 e 3:
+	* lêem a fila
+	* printam na tela os números
+	* checam se são primos
+- task 4: pisca o led
