@@ -24,13 +24,13 @@ int maxNumber = 1000;   // teto do número aleatório
 int valorRecebido = 0;  // variável que guarda o valor lido da fila 1
 int valorFinal = 0;     // variável que guarda o valor lido da fila 2
 
-const UBaseType_t queueLen = maxNumber/50;  // tamanho das filas, dinâmico pois quanto maior o teto
-                                            // maior o tempo para checar se é primo, e a fila acumula
+const UBaseType_t queueLen = 10 + maxNumber/50; // tamanho das filas, dinâmico pois quanto maior o teto
+                                                // maior o tempo para checar se é primo, e a fila acumula
 
 void setup() {
   Serial.begin(115200);             // inicia comunicação serial
 
-  Serial.println(queueLen);
+  //Serial.println(queueLen);       // print do tamanho da fila
   randomSeed(analogRead(0));        // usa um valor aleatório lido da porta analógica para iniciar o gerador de números aleatórios
 
   mutex = xSemaphoreCreateMutex();  // cria o mutex
@@ -99,6 +99,8 @@ void setup() {
               1, // Priority
               NULL);
               */
+
+  Serial.println(); // print de uma linha em branco antes de começar a execução das tarefas
 }
 
 void loop() {}
@@ -116,21 +118,27 @@ void TaskRandomNumber (void *pvParameters) {
   //Serial.println(aval);
   
   while(true) {
-    //randNumber = analogRead(A0);
-    randNumber = random(maxNumber);
-    xQueueSend(integerQueue1, &randNumber, portMAX_DELAY);
-    vTaskDelay(1);    
+    //randNumber = analogRead(A0);    // número aleatório vem do barulho na leitura da porta analógica
+    randNumber = random(maxNumber);   // número aleatório através da função random, entre 0 e maxNumber
+    xQueueSend(integerQueue1, &randNumber, portMAX_DELAY);  // tenta colocar o número na fila, se a fila
+                                                            // estiver cheia então espera. caso o tempo de
+                                                            // espera ultrapasse portMAX_DELAY então desiste
+    vTaskDelay(1);  // espera 1 tick para rodar novamente
+
+    // mede o tamanho da stack da tarefa
     //uxHighWaterMark = uxTaskGetStackHighWaterMark(Q1_handler);
     //Serial.println(uxHighWaterMark);
 
-    aval = uxQueueSpacesAvailable(integerQueue1);
-    Serial.println(aval);
+    // vê quantos espaços tem sobrando na fila
+    //aval = uxQueueSpacesAvailable(integerQueue1);
+    //Serial.println(aval);
   }
 }
 
 void TaskReadQueue (void *pvParameters) {
   (void) pvParameters;
 
+  // mede o tamanho das stacks das tarefas
   //UBaseType_t uxHighWaterMark;
   //uxHighWaterMark = uxTaskGetStackHighWaterMark(L1_handler);
   //Serial.println(uxHighWaterMark);
@@ -138,61 +146,55 @@ void TaskReadQueue (void *pvParameters) {
   //Serial.println(uxHighWaterMark);
   
   while(true) {
-    if(xSemaphoreTake(mutex, 10) == pdTRUE) {
-      if(xQueueReceive(integerQueue1, &valorRecebido, portMAX_DELAY) == pdPASS) {
-        if(checkPrime(valorRecebido)) {
-          xQueueSend(integerQueue2, &valorRecebido, portMAX_DELAY);
+    if(xSemaphoreTake(mutex, 10) == pdTRUE) { // pdTRUE se conseguir pegar o mutex
+      if(xQueueReceive(integerQueue1, &valorRecebido, portMAX_DELAY) == pdPASS) { // pdPASS/pdTRUE se recebeu um item da fila
+        if(checkPrime(valorRecebido)) { // se o valor recebido for primo coloca na fila 2
+          xQueueSend(integerQueue2, &valorRecebido, portMAX_DELAY); // idem procedimento anterior
         }
       }
     }
+    xSemaphoreGive(mutex);  // libera o semáforo
+    vTaskDelay(1);          // espera 1 tick para rodar novamente
+    
+    // mede o tamanho das stacks das tarefas
     //uxHighWaterMark = uxTaskGetStackHighWaterMark(L2_handler);
     //Serial.println(uxHighWaterMark);
-    xSemaphoreGive(mutex);
-    vTaskDelay(1);
   }
 }
 
 void TaskReadQueueFinal (void *pvParameters) {
   (void) pvParameters;
 
+  // mede o tamanho da stack da tarefa
   //UBaseType_t uxHighWaterMark;
   //uxHighWaterMark = uxTaskGetStackHighWaterMark(LF_handler);
   //Serial.println(uxHighWaterMark);  
   
   while(true) {
-    if(xQueueReceive(integerQueue2, &valorFinal, portMAX_DELAY) == pdPASS) {
-      //Serial.print("Fila 2: ");
-      //Serial.println(valorFinal);
+    if(xQueueReceive(integerQueue2, &valorFinal, portMAX_DELAY) == pdPASS) { // idem procedimento anterior
+      Serial.print("Fila 2: ");     // print do valor recebido da lista 2
+      Serial.println(valorFinal);
       
     }
+    // mede o tamanho da stack da tarefa
     //uxHighWaterMark = uxTaskGetStackHighWaterMark(LF_handler);
     //Serial.println(uxHighWaterMark);
   }
 }
-/*
-void TaskBlink (void *pvParameters) {
-  (void) pvParameters;
 
-  pinMode(LED_BUILTIN, OUTPUT);
-  
-  while(true) {
-    digitalWrite(LED_BUILTIN, HIGH);
-    vTaskDelay(xDelay500);
-    digitalWrite(LED_BUILTIN, LOW);
-    vTaskDelay(xDelay500);
-  }
-}
-*/
 bool checkPrime(int number) {
-  int numberDiv = 0;
-  for(int i = 1; i <= number; i++) {
-    if(number % i == 0) {
-      numberDiv += 1;
+  int numberDiv = 0;                  // variável que vai receber o número de divisões do número
+  for(int i = 1; i <= number; i++) {  // laço for pra checar por quais números pode ser dividido
+    if(number % i == 0) {             // se o módulo é 0 então pode ser dividido por i
+      numberDiv += 1;                 // aumenta o número de divisões
       }
+    if(numberDiv > 2) {               // se pode ser dividido por mais de 2 números pode sair do laço, não é primo
+      break;
     }
-  if(numberDiv == 2) {
+  }
+  if(numberDiv == 2) {                // se é divisível por apenas 2 números então é primo
     return true;
-  } else {
+  } else {                            // caso contrário não é
     return false;
   }
 }
