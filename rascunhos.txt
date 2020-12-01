@@ -1,0 +1,21 @@
+- task 1:
+	* gera números aleatórios (analog read ou random)
+	* coloca na fila 1
+
+- tasks 2 e 3:
+	* lêem a fila 1 (com mutex) e classificam os números
+	* colocam na fila 2 se os números forem primos
+
+- task 4:
+	* lê a fila 2
+	* exibe os números no monitor serial?
+
+- task 5:
+	* pisca o led
+	* lê o monitor serial pra receber comandos
+	* trava as outras tasks com semáforo/mutex?
+
+ESTADOS:
+task 5 sempre rodando
+
+task 1 -> task 2 e 3 -> task 4
