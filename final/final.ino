@@ -2,39 +2,50 @@
 #include <semphr.h>
 #include <queue.h>
 
+// declarando o mutex
 SemaphoreHandle_t mutex;
 
-QueueHandle_t integerQueue;
+// handlers das filas, usados para escrever e ler dados das mesmas
+QueueHandle_t integerQueue1;
+QueueHandle_t integerQueue2;
 
-// variaveis globais
-const TickType_t xDelay100 = 100 / portTICK_PERIOD_MS; // delay de 100ms
-const TickType_t xDelay250 = 250 / portTICK_PERIOD_MS; // delay de 250ms
-const TickType_t xDelay500 = 500 / portTICK_PERIOD_MS; // delay de 500ms
+// handlers das tarefas, usados para medir tamanho da stack das tarefas
+TaskHandle_t Q1_handler;
+TaskHandle_t L1_handler;
+TaskHandle_t L2_handler;
+TaskHandle_t LF_handler;
 
-int randNumber = 0;
+// variáveis globais 
+//const TickType_t xDelay500 = 500 / portTICK_PERIOD_MS; // delay de 500ms
 
-int valorRecebido = 0;
-int valorFinal = 0;
+int randNumber = 0;     // número aleatório que vai ser gerado e colocado na fila 1
+int maxNumber = 1000;   // teto do número aleatório
 
-const UBaseType_t queueLen = 50;  // tamanho da fila
+int valorRecebido = 0;  // variável que guarda o valor lido da fila 1
+int valorFinal = 0;     // variável que guarda o valor lido da fila 2
+
+const UBaseType_t queueLen = maxNumber/50;  // tamanho das filas, dinâmico pois quanto maior o teto
+                                            // maior o tempo para checar se é primo, e a fila acumula
 
 void setup() {
-  Serial.begin(115200);
-  while(!Serial) {;}
-  Serial.println("Serial inicializado");
+  Serial.begin(115200);             // inicia comunicação serial
 
-  randomSeed(analogRead(0));
+  Serial.println(queueLen);
+  randomSeed(analogRead(0));        // usa um valor aleatório lido da porta analógica para iniciar o gerador de números aleatórios
 
-  mutex = xSemaphoreCreateMutex();
+  mutex = xSemaphoreCreateMutex();  // cria o mutex
   if (mutex != NULL) {
     Serial.println("Mutex criado");
   }
-
-  integerQueue = xQueueCreate(queueLen, // Queue length
-                              sizeof(int) // Queue item size
+  
+  integerQueue1 = xQueueCreate(queueLen,  // tamanho da fila
+                              sizeof(int) // tamanho dos itens da fila
+  );
+  integerQueue2 = xQueueCreate(queueLen,  // tamanho da fila
+                              sizeof(int) // tamanho dos itens da fila
   );
   
-  if(integerQueue != NULL) {    
+  if (integerQueue1 != NULL) {    
     /*
     xTaskCreate(TaskSerial, // Task function
                 "Serial", // A name just for humans
@@ -43,36 +54,51 @@ void setup() {
                 2, // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
                 NULL);
     */
-    Serial.println("Fila criada");
-    xTaskCreate(TaskRandomNumber, // Task function
-                "RandomNumber", // Task name
-                128,  // Stack size
-                NULL, 
-                2, // Priority
-                NULL);
+    Serial.println("Fila 1 criada");
+    xTaskCreate(TaskRandomNumber, // função da tarefa
+                "RandomNumber",   // nome da tarefa
+                80,               // tamanho da stack (regulado usando uxHighWaterMark)
+                NULL,             // parâmetros da tarefa
+                2,                // prioridade
+                &Q1_handler);     // handler
   } else {
-    Serial.println("Erro na criação da fila!");
-  }  
-  xTaskCreate(TaskReadQueue,
-              "L1",
-              128,
-              NULL,
-              1,
-              NULL);
+    Serial.println("Erro na criação da fila 1!");
+  }
+
+  if (integerQueue2 != NULL) {
+    Serial.println("Fila 2 criada");
+    xTaskCreate(TaskReadQueueFinal, // função da tarefa
+                "LeitorFinal",      // nome da tarefa
+                88,                 // tamanho da stack
+                NULL,               // parâmetros da tarefa
+                3,                  // prioridade
+                &LF_handler);       // handler
+  } else {
+    Serial.println("Erro na criação da fila 2!");
+  }
   
-  xTaskCreate(TaskReadQueue,
-              "L2",
-              128,
-              NULL,
-              1,
-              NULL);
+  xTaskCreate(TaskReadQueue,  // função da tarefa
+              "L1",           // nome da tarefa
+              128,            // tamanho da stack
+              NULL,           // parâmetros da tarefa
+              1,              // prioridade
+              &L1_handler);   // handler
+
+  xTaskCreate(TaskReadQueue,  // função da tarefa
+              "L2",           // nome da tarefa
+              128,            // tamanho da stack
+              NULL,           // parâmetros da tarefa
+              1,              // prioridade
+              &L2_handler);   // handler
   
+  /*
   xTaskCreate(TaskBlink, // Task function
               "Blink", // Task name
               128, // Stack size 
               NULL, 
               1, // Priority
               NULL);
+              */
 }
 
 void loop() {}
@@ -80,39 +106,47 @@ void loop() {}
 void TaskRandomNumber (void *pvParameters) {
   (void) pvParameters;
 
+  // mede o tamanho da stack da tarefa
+  //UBaseType_t uxHighWaterMark;
+  //uxHighWaterMark = uxTaskGetStackHighWaterMark(Q1_handler);
+  //Serial.println(uxHighWaterMark);
+
+  // vê quantos espaços tem sobrando na fila
+  //UBaseType_t aval = uxQueueSpacesAvailable(integerQueue1);
+  //Serial.println(aval);
+  
   while(true) {
     //randNumber = analogRead(A0);
-
-    randNumber = random(1000);
-    //Serial.println("1");
+    randNumber = random(maxNumber);
     xQueueSend(integerQueue1, &randNumber, portMAX_DELAY);
-    //Serial.println(randNumber);
-    //vTaskDelay(1);
+    vTaskDelay(1);    
+    //uxHighWaterMark = uxTaskGetStackHighWaterMark(Q1_handler);
+    //Serial.println(uxHighWaterMark);
 
+    aval = uxQueueSpacesAvailable(integerQueue1);
+    Serial.println(aval);
   }
 }
 
 void TaskReadQueue (void *pvParameters) {
   (void) pvParameters;
 
+  //UBaseType_t uxHighWaterMark;
+  //uxHighWaterMark = uxTaskGetStackHighWaterMark(L1_handler);
+  //Serial.println(uxHighWaterMark);
+  //uxHighWaterMark = uxTaskGetStackHighWaterMark(L2_handler);
+  //Serial.println(uxHighWaterMark);
+  
   while(true) {
     if(xSemaphoreTake(mutex, 10) == pdTRUE) {
-
       if(xQueueReceive(integerQueue1, &valorRecebido, portMAX_DELAY) == pdPASS) {
-        //Serial.print("Fila 1: ");
-        //Serial.println(valorRecebido);
-
-      //if(xQueueReceive(integerQueue, &valorRecebido, portMAX_DELAY) == pdPASS) {
-        //Serial.print(pcTaskGetName(NULL)); // Get task name
-        //Serial.print(", numero : ");
-        //Serial.println(valorRecebido);
-
         if(checkPrime(valorRecebido)) {
-          Serial.println("PRIMO!");
+          xQueueSend(integerQueue2, &valorRecebido, portMAX_DELAY);
         }
-        xSemaphoreGive(mutex);
       }
     }
+    //uxHighWaterMark = uxTaskGetStackHighWaterMark(L2_handler);
+    //Serial.println(uxHighWaterMark);
     xSemaphoreGive(mutex);
     vTaskDelay(1);
   }
@@ -120,17 +154,22 @@ void TaskReadQueue (void *pvParameters) {
 
 void TaskReadQueueFinal (void *pvParameters) {
   (void) pvParameters;
+
+  //UBaseType_t uxHighWaterMark;
+  //uxHighWaterMark = uxTaskGetStackHighWaterMark(LF_handler);
+  //Serial.println(uxHighWaterMark);  
   
   while(true) {
     if(xQueueReceive(integerQueue2, &valorFinal, portMAX_DELAY) == pdPASS) {
-      Serial.print("Fila 2: ");
-      Serial.println(valorFinal);
+      //Serial.print("Fila 2: ");
+      //Serial.println(valorFinal);
+      
     }
-    //vTaskDelay(xDelay250);
-    //vTaskDelay(1);
+    //uxHighWaterMark = uxTaskGetStackHighWaterMark(LF_handler);
+    //Serial.println(uxHighWaterMark);
   }
 }
-
+/*
 void TaskBlink (void *pvParameters) {
   (void) pvParameters;
 
@@ -143,7 +182,7 @@ void TaskBlink (void *pvParameters) {
     vTaskDelay(xDelay500);
   }
 }
-
+*/
 bool checkPrime(int number) {
   int numberDiv = 0;
   for(int i = 1; i <= number; i++) {
