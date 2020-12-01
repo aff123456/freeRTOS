@@ -31,7 +31,7 @@ void setup() {
   Serial.begin(115200);             // inicia comunicação serial
 
   //Serial.println(queueLen);       // print do tamanho da fila
-  randomSeed(analogRead(0));        // usa um valor aleatório lido da porta analógica para iniciar o gerador de números aleatórios
+  randomSeed(analogRead(A0));       // usa um valor aleatório lido da porta analógica para iniciar o gerador de números aleatórios
 
   mutex = xSemaphoreCreateMutex();  // cria o mutex
   if (mutex != NULL) {
@@ -46,14 +46,6 @@ void setup() {
   );
   
   if (integerQueue1 != NULL) {    
-    /*
-    xTaskCreate(TaskSerial, // Task function
-                "Serial", // A name just for humans
-                128,  // This stack size can be checked & adjusted by reading the Stack Highwater
-                NULL, 
-                2, // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
-                NULL);
-    */
     Serial.println("Fila 1 criada");
     xTaskCreate(TaskRandomNumber, // função da tarefa
                 "RandomNumber",   // nome da tarefa
@@ -90,16 +82,6 @@ void setup() {
               NULL,           // parâmetros da tarefa
               1,              // prioridade
               &L2_handler);   // handler
-  
-  /*
-  xTaskCreate(TaskBlink, // Task function
-              "Blink", // Task name
-              128, // Stack size 
-              NULL, 
-              1, // Priority
-              NULL);
-              */
-
   Serial.println(); // print de uma linha em branco antes de começar a execução das tarefas
 }
 
